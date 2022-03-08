@@ -17,12 +17,22 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 100
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
+
+
+static ktime_t fib_time_proxy(long long (*fib_f)(long long), long long k)
+{
+    ktime_t kt = ktime_get();
+    fib_f(k);
+    kt = ktime_sub(ktime_get(), kt);
+
+    return kt;
+}
 
 static long long fib_sequence(long long k)
 {
@@ -69,7 +79,15 @@ static ssize_t fib_write(struct file *file,
                          size_t size,
                          loff_t *offset)
 {
-    return 1;
+    ktime_t kt;
+    switch (size) {
+    case 0:
+        kt = fib_time_proxy(fib_sequence, *offset);
+        break;
+    default:
+        return 1;
+    }
+    return (ssize_t) ktime_to_ns(kt);
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
