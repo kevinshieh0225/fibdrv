@@ -14,6 +14,8 @@ MODULE_VERSION("0.1");
 
 #define DEV_FIBONACCI_NAME "fibonacci"
 
+
+
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
@@ -24,29 +26,64 @@ static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
+#define FIB_TIME_PROXY(fib_f, k)             \
+    ({                                       \
+        ktime_t kt = ktime_get();            \
+        fib_f(k);                            \
+        (size_t) ktime_sub(ktime_get(), kt); \
+    })
 
-static ktime_t fib_time_proxy(long long (*fib_f)(long long), long long k)
+// static ktime_t fib_time_proxy(uint64_t (*fib_f)(long long), int k)
+// {
+//     ktime_t kt = ktime_get();
+//     fib_f(k);
+//     kt = ktime_sub(ktime_get(), kt);
+
+//     return kt;
+// }
+
+static uint64_t fib_sequence(long long k)
 {
-    ktime_t kt = ktime_get();
-    fib_f(k);
-    kt = ktime_sub(ktime_get(), kt);
-
-    return kt;
-}
-
-static long long fib_sequence(long long k)
-{
-    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
-    long long f[k + 2];
-
-    f[0] = 0;
-    f[1] = 1;
+    uint64_t state[] = {0, 1};
 
     for (int i = 2; i <= k; i++) {
-        f[i] = f[i - 1] + f[i - 2];
+        state[(i & 1)] += state[((i - 1) & 1)];
     }
 
-    return f[k];
+    return state[(k & 1)];
+}
+
+static uint64_t fib_fast_doubling(long long k)
+{
+    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
+    // The position of the highest bit of n.
+    // So we need to loop `h` times to get the answer.
+    // Example: n = (Dec)50 = (Bin)00110010, then h = 6.
+    //                               ^ 6th bit from right side
+    unsigned int h = (sizeof(k) << 3) - __builtin_clz(k);
+
+    uint64_t a = 0;  // F(0) = 0
+    uint64_t b = 1;  // F(1) = 1
+    // There is only one `1` in the bits of `mask`. The `1`'s position is same
+    // as the highest bit of n(mask = 2^(h-1) at first), and it will be shifted
+    // right iteratively to do `AND` operation with `n` to check `n_j` is odd or
+    // even, where n_j is defined below.
+    for (unsigned int mask = 1 << (h - 1); mask; mask >>= 1) {  // Run h times!
+        // Let j = h-i (looping from i = 1 to i = h), n_j = floor(n / 2^j) =
+        // n >> j (n_j = n when j = 0), k = floor(n_j / 2), then a = F(k),
+        // b = F(k+1) now.
+        uint64_t c = a * (2 * b - a);  // F(2k) = F(k) * [ 2 * F(k+1) – F(k) ]
+        uint64_t d = a * a + b * b;    // F(2k+1) = F(k)^2 + F(k+1)^2
+
+        if (mask & k) {  // n_j is odd: k = (n_j-1)/2 => n_j = 2k + 1
+            a = d;       //   F(n_j) = F(2k + 1)
+            b = c + d;   //   F(n_j + 1) = F(2k + 2) = F(2k) + F(2k + 1)
+        } else {         // n_j is even: k = n_j/2 => n_j = 2k
+            a = c;       //   F(n_j) = F(2k)
+            b = d;       //   F(n_j + 1) = F(2k + 1)
+        }
+    }
+    return a;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -70,7 +107,16 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    ssize_t fib_result;
+    switch (size) {
+    case 0:
+        fib_result = fib_sequence(*offset);
+        break;
+    case 1:
+        fib_result = fib_fast_doubling(*offset);
+        break;
+    }
+    return fib_result;
 }
 
 /* write operation is skipped */
@@ -82,7 +128,10 @@ static ssize_t fib_write(struct file *file,
     ktime_t kt;
     switch (size) {
     case 0:
-        kt = fib_time_proxy(fib_sequence, *offset);
+        kt = FIB_TIME_PROXY(fib_sequence, *offset);
+        break;
+    case 1:
+        kt = FIB_TIME_PROXY(fib_fast_doubling, *offset);
         break;
     default:
         return 1;
