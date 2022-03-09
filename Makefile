@@ -30,6 +30,9 @@ client: client.c
 client_statistic: client_statistic.c
 	$(CC) -o $@ $^ -lm
 
+plot: all
+	sh do_measurement.sh > /dev/null
+
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
 NO_COLOR = \e[0m
