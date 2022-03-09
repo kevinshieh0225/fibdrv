@@ -10,7 +10,7 @@
 
 #define FIB_DEV "/dev/fibonacci"
 #define sample_size 5000
-#define mode 3
+#define mode 5
 
 int main()
 {

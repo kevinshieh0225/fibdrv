@@ -55,23 +55,22 @@ static uint64_t fib_fast_doubling(long long k)
 {
     if (k < 2)
         return k;
-    uint64_t a = 0;  // F(0) = 0
-    uint64_t b = 1;  // F(1) = 1
+    uint64_t f1 = 0;  // F(0) = 0
+    uint64_t f2 = 1;  // F(1) = 1
 
-    for (unsigned int mask = 1 << ((sizeof(k) << 3) - __builtin_clz(k) - 1);
-         mask; mask >>= 1) {
-        uint64_t c = a * (2 * b - a);  // F(2k) = F(k) * [ 2 * F(k+1) – F(k) ]
-        uint64_t d = a * a + b * b;    // F(2k+1) = F(k)^2 + F(k+1)^2
+    for (unsigned int mask = 1U << (31 - __builtin_clz(k)); mask; mask >>= 1) {
+        uint64_t k1 = f1 * ((f2 << 1) - f1);  // F(2k) = F(k)*[2*F(k+1) – F(k)]
+        uint64_t k2 = f1 * f1 + f2 * f2;      // F(2k+1) = F(k)^2 + F(k+1)^2
 
-        if (mask & k) {  // n_j is odd: k = (n_j-1)/2 => n_j = 2k + 1
-            a = d;       //   F(n_j) = F(2k + 1)
-            b = c + d;   //   F(n_j + 1) = F(2k + 2) = F(2k) + F(2k + 1)
-        } else {         // n_j is even: k = n_j/2 => n_j = 2k
-            a = c;       //   F(n_j) = F(2k)
-            b = d;       //   F(n_j + 1) = F(2k + 1)
+        if (mask & k) {    // n_j is odd: k = (n_j-1)/2 => n_j = 2k + 1
+            f1 = k2;       //   F(n_j) = F(2k + 1)
+            f2 = k1 + k2;  //   F(n_j + 1) = F(2k + 2) = F(2k) + F(2k + 1)
+        } else {           // n_j is even: k = n_j/2 => n_j = 2k
+            f1 = k1;       //   F(n_j) = F(2k)
+            f2 = k2;       //   F(n_j + 1) = F(2k + 1)
         }
     }
-    return a;
+    return f1;
 }
 
 static ssize_t fib_write(struct file *file,
@@ -86,6 +85,15 @@ static ssize_t fib_write(struct file *file,
         kt = FIB_TIME_PROXY(fib_sequence, *offset, result);
         break;
     case 1:
+        kt = FIB_TIME_PROXY(fib_fast_doubling_31, *offset, result);
+        break;
+    case 2:
+        kt = FIB_TIME_PROXY(fib_fast_doubling_16, *offset, result);
+        break;
+    case 3:
+        kt = FIB_TIME_PROXY(fib_fast_doubling_6, *offset, result);
+        break;
+    case 4:
         kt = FIB_TIME_PROXY(fib_fast_doubling, *offset, result);
         break;
     default:

@@ -8,14 +8,13 @@
 
 
 #define FIB_DEV "/dev/fibonacci"
-
+#define offset 100 /* TODO: try test something bigger than the limit */
+#define mode 1
 int main()
 {
     uint64_t sz;
 
     char buf[1];
-    int offset = 100; /* TODO: try test something bigger than the limit */
-    int mode = 0;     // 0: sequence, 1: fast-double
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
         perror("Failed to open character device");
