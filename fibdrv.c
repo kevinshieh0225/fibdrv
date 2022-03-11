@@ -6,6 +6,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>  // Required for the copy_to_user()
+
+#include "bn_kernel.h"
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
@@ -26,17 +30,23 @@ __attribute__((always_inline)) static inline void escape(void *p)
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 100
+#define MAX_LENGTH 100000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
-#define FIB_TIME_PROXY(fib_f, k, result)     \
+#define FIB_TIME_PROXY(fib_f, result, k)     \
     ({                                       \
         ktime_t kt = ktime_get();            \
         result = fib_f(k);                   \
+        (size_t) ktime_sub(ktime_get(), kt); \
+    })
+#define BN_FIB_TIME_PROXY(fib_f, bn_fib, k)  \
+    ({                                       \
+        ktime_t kt = ktime_get();            \
+        fib_f(bn_fib, k);                    \
         (size_t) ktime_sub(ktime_get(), kt); \
     })
 
@@ -79,28 +89,52 @@ static ssize_t fib_write(struct file *file,
                          loff_t *offset)
 {
     ktime_t kt;
-    uint64_t result = 0;
+    bn *tmp = bn_alloc(1);
+    int result = 0;
     switch (mode) {
     case 0:
-        kt = FIB_TIME_PROXY(fib_sequence, *offset, result);
+        kt = BN_FIB_TIME_PROXY(bn_fib, tmp, *offset);
         break;
     case 1:
-        kt = FIB_TIME_PROXY(fib_fast_doubling_31, *offset, result);
+        kt = BN_FIB_TIME_PROXY(bn_fib_fdoubling, tmp, *offset);
         break;
     case 2:
-        kt = FIB_TIME_PROXY(fib_fast_doubling_16, *offset, result);
+        kt = FIB_TIME_PROXY(fib_sequence, *offset, result);
         break;
     case 3:
-        kt = FIB_TIME_PROXY(fib_fast_doubling_6, *offset, result);
-        break;
-    case 4:
         kt = FIB_TIME_PROXY(fib_fast_doubling, *offset, result);
         break;
-    default:
-        return 1;
     }
-    escape(&result);
+    escape(tmp);
+    escape(result);
+    bn_free(tmp);
     return (ssize_t) ktime_to_ns(kt);
+}
+
+/* calculate the fibonacci number at given offset */
+static ssize_t fib_read(struct file *file,
+                        char *buf,
+                        size_t mode,
+                        loff_t *offset)
+{
+    bn *fib = bn_alloc(1);
+
+    switch (mode) {
+    case 0:
+        bn_fib(fib, *offset);
+        break;
+    case 1:
+        bn_fib_fdoubling(fib, *offset);
+        break;
+    }
+    // bn_fib(fib, *offset);
+    char *p = bn_to_string(fib);
+    size_t len = strlen(p) + 1;
+    size_t left = copy_to_user(buf, p, len);
+    // printk(KERN_DEBUG "fib(%d): %s\n", (int) *offset, p);
+    bn_free(fib);
+    kfree(p);
+    return left;  // return number of bytes that could not be copied
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -117,25 +151,6 @@ static int fib_release(struct inode *inode, struct file *file)
     mutex_unlock(&fib_mutex);
     return 0;
 }
-
-/* calculate the fibonacci number at given offset */
-static ssize_t fib_read(struct file *file,
-                        char *buf,
-                        size_t mode,
-                        loff_t *offset)
-{
-    ssize_t fib_result;
-    switch (mode) {
-    case 0:
-        fib_result = fib_sequence(*offset);
-        break;
-    case 1:
-        fib_result = fib_fast_doubling(*offset);
-        break;
-    }
-    return fib_result;
-}
-
 
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)

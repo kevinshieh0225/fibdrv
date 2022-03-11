@@ -20,10 +20,9 @@ make load
 rm -f plot_input_statistic
 sudo taskset -c 7 ./client_statistic
 gnuplot scripts/plot-statistic.gp
-
 make unload
 
 # restore the original system settings
-sudo bash -c "echo $ORIG_ASLR >  /proc/sys/kernel/randomize_va_space"
-sudo bash -c "echo $ORIG_GOV > /sys/devices/system/cpu/cpu$CPUID/cpufreq/scaling_governor"
-sudo bash -c "echo $ORIG_TURBO > /sys/devices/system/cpu/intel_pstate/no_turbo"
+sudo bash -c "echo 2 >  /proc/sys/kernel/randomize_va_space"
+sudo bash -c "echo powersave > /sys/devices/system/cpu/cpu$CPUID/cpufreq/scaling_governor"
+sudo bash -c "echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo"

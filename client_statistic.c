@@ -9,14 +9,14 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define sample_size 5000
-#define mode 5
+#define sample_size 1000
+#define mode 2
+#define offset 1000
 
 int main()
 {
     FILE *fp = fopen("./plot_input_statistic", "w");
     char write_buf[] = "testing writing";
-    int offset = 100;
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -33,39 +33,30 @@ int main()
         double mean[mode] = {0.0}, sd[mode] = {0.0}, result[mode] = {0.0};
         int count[mode] = {0};
 
-        for (int n = 0; n < sample_size; n++) { /* sampling */
-            /* get the runtime in kernel space here */
-            for (int m = 0; m < mode; ++m) {
-                time[m][n] = (double) write(fd, write_buf, m);
+        for (int m = 0; m < mode; ++m) {
+            for (int n = 0; n < sample_size; n++) { /* sampling */
+                /* get the runtime in kernel space here */
+                time[m][n] = write(fd, write_buf, m);
                 mean[m] += time[m][n]; /* sum */
             }
-        }
-        for (int m = 0; m < mode; ++m) {
             mean[m] /= sample_size; /* mean */
-        }
 
-        for (int n = 0; n < sample_size; n++) {
-            for (int m = 0; m < mode; ++m) {
+            for (int n = 0; n < sample_size; n++) {
                 sd[m] += (time[m][n] - mean[m]) * (time[m][n] - mean[m]);
             }
-        }
-        for (int m = 0; m < mode; ++m) {
             sd[m] = sqrt(sd[m] / (sample_size - 1)); /* standard deviation */
-        }
 
-        for (int n = 0; n < sample_size; n++) { /* remove outliers */
-            for (int m = 0; m < mode; ++m) {
+            for (int n = 0; n < sample_size; n++) { /* remove outliers */
                 if (time[m][n] <= (mean[m] + 2 * sd[m]) &&
                     time[m][n] >= (mean[m] - 2 * sd[m])) {
                     result[m] += time[m][n];
                     count[m]++;
                 }
             }
-        }
-        for (int m = 0; m < mode; ++m) {
             result[m] /= count[m];
         }
 
+        // print result to file
         fprintf(fp, "%d ", i);
         for (int m = 0; m < mode; ++m) {
             fprintf(fp, "%.5lf ", result[m]);
