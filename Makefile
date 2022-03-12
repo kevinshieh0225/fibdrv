@@ -5,6 +5,7 @@ obj-m += $(TARGET_MODULE).o
 $(TARGET_MODULE)-objs := \
 	fibdrv.o \
 	bn_kernel.o \
+	fib_algorithm.o \
 
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
