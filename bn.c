@@ -1,8 +1,10 @@
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/types.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "bn_kernel.h"
+
+#include "bn.h"
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #ifndef SWAP
@@ -16,6 +18,10 @@
 
 #ifndef DIV_ROUNDUP
 #define DIV_ROUNDUP(x, len) (((x) + (len) -1) / (len))
+#endif
+
+#ifndef unlikely
+#define unlikely(x) __builtin_expect((x), 0)
 #endif
 
 /* count leading zeros of src*/
@@ -42,13 +48,13 @@ static int bn_msb(const bn *src)
 
 /*
  * output bn to decimal string
- * Note: the returned string should be freed with the kfree()
+ * Note: the returned string should be freed with the free()
  */
 char *bn_to_string(const bn *src)
 {
     // log10(x) = log2(x) / log2(10) ~= log2(x) / 3.322
     size_t len = (8 * sizeof(int) * src->size) / 3 + 2 + src->sign;
-    char *s = kmalloc(len, GFP_KERNEL);
+    char *s = (char *) malloc(len);
     char *p = s;
 
     memset(s, '0', len - 1);
@@ -84,8 +90,8 @@ char *bn_to_string(const bn *src)
  */
 bn *bn_alloc(size_t size)
 {
-    bn *new = (bn *) kmalloc(sizeof(bn), GFP_KERNEL);
-    new->number = kmalloc(sizeof(int) * size, GFP_KERNEL);
+    bn *new = (bn *) malloc(sizeof(bn));
+    new->number = (unsigned int *) malloc(sizeof(int) * size);
     memset(new->number, 0, sizeof(int) * size);
     new->size = size;
     new->sign = 0;
@@ -100,8 +106,8 @@ int bn_free(bn *src)
 {
     if (src == NULL)
         return -1;
-    kfree(src->number);
-    kfree(src);
+    free(src->number);
+    free(src);
     return 0;
 }
 
@@ -116,9 +122,9 @@ static int bn_resize(bn *src, size_t size)
         return -1;
     if (size == src->size)
         return 0;
-    if (size == 0)  // prevent krealloc(0) = kfree, which will cause problem
+    if (size == 0)  // prevent realloc(0) = free, which will cause problem
         return bn_free(src);
-    src->number = krealloc(src->number, sizeof(int) * size, GFP_KERNEL);
+    src->number = realloc(src->number, sizeof(int) * size);
     if (!src->number) {  // realloc fails
         return -1;
     }
@@ -345,12 +351,12 @@ void bn_mult(const bn *a, const bn *b, bn *c)
     c->sign = a->sign ^ b->sign;
 
     if (tmp) {
-        bn_cpy(tmp, c);  // restore c
+        bn_swap(tmp, c);  // restore c
         bn_free(c);
     }
 }
 
-
+/* calc n-th Fibonacci number and save into dest */
 void bn_fib_v0(bn *dest, unsigned int n)
 {
     bn_resize(dest, 1);
@@ -364,13 +370,14 @@ void bn_fib_v0(bn *dest, unsigned int n)
     dest->number[0] = 1;
 
     for (unsigned int i = 1; i < n; i++) {
-        bn_cpy(b, dest);
-        bn_add(dest, a, dest);
+        bn_swap(b, dest);
+        bn_add(a, b, dest);
         bn_swap(a, b);
-    }
+    }  // dest = result
     bn_free(a);
     bn_free(b);
 }
+
 /* calc n-th Fibonacci number and save into dest */
 void bn_fib_v1(bn *dest, unsigned int n)
 {
@@ -433,7 +440,7 @@ void bn_fdoubling_v0(bn *dest, unsigned int n)
             bn_cpy(f2, k2);
         }
     }
-    // return f1
+    // return f[0]
     bn_free(f2);
     bn_free(k1);
     bn_free(k2);

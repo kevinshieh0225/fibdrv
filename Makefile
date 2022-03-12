@@ -34,7 +34,6 @@ client: client.c
 client_statistic: client_statistic.c
 	$(CC) -o $@ $^ -lm
 
-
 CPUID=7
 
 exp_mode:
@@ -67,3 +66,16 @@ plot: all
 	gnuplot scripts/plot-statistic.gp
 	$(MAKE) unload
 	$(MAKE) exp_recover
+
+
+
+client_perf: client_perf.c bn.h bn.c
+	$(CC) -o $@ $^ -lm
+
+perfstat: client_perf
+	$(MAKE) client_perf
+	sudo perf stat -r 50 -e cycles,instructions,cache-references,cache-misses,branch-instructions,branch-misses ./client_perf
+
+perfrecord: client_perf
+	sudo perf record -g --call-graph dwarf ./client_perf
+	sudo perf report --stdio -g graph,0.5,caller

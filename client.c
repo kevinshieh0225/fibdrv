@@ -8,37 +8,23 @@
 
 
 #define FIB_DEV "/dev/fibonacci"
-#define offset 1000 /* TODO: try test something bigger than the limit */
-#define mode 1
+#define offset 100 /* TODO: try test something bigger than the limit */
+#define mode 0
 
 
 int main()
 {
-    uint64_t sz;
-
     char buf[100000];
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
         perror("Failed to open character device");
         exit(1);
     }
-
-    printf("\n");
     for (int i = 0; i <= offset; i++) {
         lseek(fd, i, SEEK_SET);
-        sz = read(fd, buf, mode);
-        if (!sz)
-            return;
-        printf("Reading from " FIB_DEV
-               " at offset %d, returned the sequence "
-               "%s.\n",
-               i, buf);
-    }
-    for (int i = offset; i >= 0; i--) {
-        lseek(fd, i, SEEK_SET);
-        sz = read(fd, buf, mode);
-        if (!sz)
-            return;
+        int sz = read(fd, buf, mode);
+        if (sz)
+            return 0;
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%s.\n",

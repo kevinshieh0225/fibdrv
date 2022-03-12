@@ -10,8 +10,8 @@
 
 #define FIB_DEV "/dev/fibonacci"
 #define sample_size 1000
-#define mode 2
 #define offset 1000
+#define mode 3
 
 int main()
 {
