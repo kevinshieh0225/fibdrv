@@ -1,4 +1,6 @@
-static uint64_t fib_sequence(long long k)
+#include "fib_algorithm.h"
+
+uint64_t fib_sequence(long long k)
 {
     uint64_t state[] = {0, 1};
 
@@ -9,7 +11,7 @@ static uint64_t fib_sequence(long long k)
     return state[(k & 1)];
 }
 
-static uint64_t fib_fast_doubling(long long k)
+uint64_t fib_fast_doubling(long long k)
 {
     if (k < 2)
         return k;

@@ -1,7 +1,3 @@
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/types.h>
-
 #include "bn_kernel.h"
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))

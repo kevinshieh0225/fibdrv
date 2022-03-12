@@ -1,3 +1,7 @@
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
 /*
  * bignum data structure
  * number[0] contains least significant bits

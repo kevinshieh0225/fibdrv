@@ -58,7 +58,7 @@ static ssize_t fib_write(struct file *file,
 {
     ktime_t kt;
     bn *tmp = bn_alloc(1);
-    int result = 0;
+    uint64_t result = 0;
     switch (mode) {
     case 0:
         kt = BN_FIB_TIME_PROXY(bn_fib_v0, tmp, *offset);
