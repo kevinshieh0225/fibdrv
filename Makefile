@@ -56,15 +56,17 @@ check: all
 	$(MAKE) exp_recover
 	@scripts/verify.py
 
+plot:
+	gnuplot scripts/plot-statistic.gp
 
-plot: all
+statistic: all
 	$(MAKE) exp_mode
 	$(MAKE) client_statistic
 	$(MAKE) unload
 	$(MAKE) load
 	rm -f plot_input_statistic
 	sudo taskset -c $(CPUID) ./client_statistic
-	gnuplot scripts/plot-statistic.gp
+	$(MAKE) plot
 	$(MAKE) unload
 	$(MAKE) exp_recover
 

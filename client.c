@@ -8,7 +8,7 @@
 
 
 #define FIB_DEV "/dev/fibonacci"
-#define offset 100 /* TODO: try test something bigger than the limit */
+#define offset 10000 /* TODO: try test something bigger than the limit */
 #define mode 0
 
 

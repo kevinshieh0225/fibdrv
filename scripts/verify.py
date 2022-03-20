@@ -21,10 +21,13 @@ for r in result:
 for i in range(2, len(dics) + 1):
     expect.append(expect[i - 1] + expect[i - 2])
 
+trigger = 5
 for i in dics:
     fib = i[1] 
     if (expect[i[0]] != fib):
         print('f(%s) fail' % str(i[0]))
         print('input: %s' %(fib))
         print('expected: %s' %(expect[i[0]]))
-        exit()
+        trigger -= 1
+        if (trigger == 0):
+            exit()

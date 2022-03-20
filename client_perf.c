@@ -12,7 +12,7 @@ int main(int argc, char const *argv[])
 {
     bn *test = bn_alloc(1);
     for (int i = 0; i < ITER_TIMES; i++) {
-        bn_fib_v1(test, ITH);
+        bn_fdoubling_v0(test, ITH);
         escape(test->number);
     }
     bn_free(test);

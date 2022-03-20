@@ -10,12 +10,12 @@
 
 #define FIB_DEV "/dev/fibonacci"
 #define sample_size 1000
-#define offset 1000
-#define mode 3
+#define offset 10000
+#define mode 1
 
 int main()
 {
-    FILE *fp = fopen("./plot_input_statistic", "w");
+    FILE *fp = fopen("./plot_bn_fd_v3_bn_mult", "w");
     char write_buf[] = "testing writing";
 
     int fd = open(FIB_DEV, O_RDWR);

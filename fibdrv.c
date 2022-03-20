@@ -61,19 +61,22 @@ static ssize_t fib_write(struct file *file,
     uint64_t result = 0;
     switch (mode) {
     case 0:
-        kt = BN_FIB_TIME_PROXY(bn_fib_v0, tmp, *offset);
+        kt = BN_FIB_TIME_PROXY(bn_fdoubling_v1, tmp, *offset);
         break;
     case 1:
-        kt = BN_FIB_TIME_PROXY(bn_fib_v1, tmp, *offset);
+        kt = BN_FIB_TIME_PROXY(bn_fdoubling_v0, tmp, *offset);
         break;
     case 2:
-        kt = BN_FIB_TIME_PROXY(bn_fdoubling_v0, tmp, *offset);
+        kt = BN_FIB_TIME_PROXY(bn_fib_v1, tmp, *offset);
         break;
     case 10:
         kt = FIB_TIME_PROXY(fib_sequence, result, *offset);
         break;
     case 11:
         kt = FIB_TIME_PROXY(fib_fast_doubling, result, *offset);
+        break;
+    case 12:
+        kt = BN_FIB_TIME_PROXY(bn_fib_v0, tmp, *offset);
         break;
     }
     escape(tmp);
@@ -92,10 +95,13 @@ static ssize_t fib_read(struct file *file,
 
     switch (mode) {
     case 0:
-        bn_fib_v0(fib, *offset);
+        bn_fib_v1(fib, *offset);
         break;
     case 1:
         bn_fdoubling_v0(fib, *offset);
+        break;
+    case 2:
+        bn_fdoubling_v1(fib, *offset);
         break;
     }
     // bn_fib(fib, *offset);
