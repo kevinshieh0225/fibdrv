@@ -6,31 +6,28 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
+#include "bn.h"
 #define FIB_DEV "/dev/fibonacci"
-#define offset 2000 /* TODO: try test something bigger than the limit */
-#define mode 2
+#define offset 2000
+#define mode 0
 
 
 int main()
 {
-    char buf[100000];
-    int fd = open(FIB_DEV, O_RDWR);
-    if (fd < 0) {
-        perror("Failed to open character device");
-        exit(1);
-    }
+    void (*fib_algorithm[3])(bn *, unsigned int) = {bn_fib_v1, bn_fdoubling_v0,
+                                                    bn_fdoubling_v1};
+
     for (int i = 0; i <= offset; i++) {
-        lseek(fd, i, SEEK_SET);
-        int sz = read(fd, buf, mode);
-        if (sz)
-            return 0;
+        bn *fib = bn_alloc(1);
+        fib_algorithm[mode](fib, i);
+        char *buf = bn_to_string(fib);
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%s.\n",
                i, buf);
+        bn_free(fib);
+        free(buf);
     }
 
-    close(fd);
     return 0;
 }

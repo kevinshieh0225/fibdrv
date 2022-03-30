@@ -56,6 +56,15 @@ check: all
 	$(MAKE) exp_recover
 	@scripts/verify.py
 
+us_debug: us_debug.c bn.h bn.c
+	$(CC) -g -o $@ $^ -lm
+
+uscheck: us_debug
+	$(MAKE) exp_mode
+	sudo taskset -c $(CPUID) ./us_debug > out
+	$(MAKE) exp_recover
+	@scripts/verify.py
+
 plot:
 	gnuplot scripts/plot-statistic.gp
 

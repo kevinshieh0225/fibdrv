@@ -1,7 +1,26 @@
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__LP64__) || defined(__x86_64__) || defined(__amd64__) || \
+    defined(__aarch64__)
+#define BN_WSIZE 64
+#else
+#define BN_WSIZE 32
+#endif
+
+#if BN_WSIZE == 64
+typedef uint64_t bn_data;
+typedef unsigned __int128 bn_data_tmp_u;  // gcc support __int128
+typedef __int128 bn_data_tmp_s;           // gcc support __int128
+#elif BN_WSIZE == 32
+typedef uint32_t bn_data;
+typedef uint64_t bn_data_tmp;
+#else
+#error "BN_WSIZE must be 32 or 64"
+#endif
 
 /*
  * bignum data structure
@@ -10,7 +29,7 @@
  * sign = 1 for negative number
  */
 typedef struct _bn {
-    unsigned int *number;
+    bn_data *number;
     unsigned int size;
     int sign;
 } bn;
@@ -51,7 +70,7 @@ int bn_cmp(const bn *a, const bn *b);
 void bn_swap(bn *a, bn *b);
 
 /* left bit shift on bn (maximun shift 31) */
-void bn_lshift(bn *src, size_t shift);
+void bn_lshift(bn *src, size_t shift, bn *dest);
 
 /* right bit shift on bn (maximun shift 31) */
 // void bn_rshift(bn *src, size_t shift);
@@ -69,3 +88,4 @@ void bn_mult(const bn *a, const bn *b, bn *c);
 void bn_fib_v0(bn *dest, unsigned int n);
 void bn_fib_v1(bn *dest, unsigned int n);
 void bn_fdoubling_v0(bn *dest, unsigned int n);
+void bn_fdoubling_v1(bn *dest, unsigned int n);

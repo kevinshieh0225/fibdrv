@@ -216,43 +216,29 @@ int bn_cmp(const bn *a, const bn *b)
  */
 static void bn_do_add(const bn *a, const bn *b, bn *c)
 {
-    // max digits = max(sizeof(a) + sizeof(b)) + 1
-    int d = MAX(bn_msb(a), bn_msb(b)) + 1;
-    d = DIV_ROUNDUP(d, BN_WSIZE) + !d;
-    bn_resize(c, d);  // round up, min size = 1
-
-    bn_data_tmp_u carry = 0;
-    for (int i = 0; i < c->size; i++) {
-        bn_data tmp1 = (i < a->size) ? a->number[i] : 0;
-        bn_data tmp2 = (i < b->size) ? b->number[i] : 0;
-        carry += (bn_data_tmp_u) tmp1 + tmp2;
-        c->number[i] = carry;
-        carry >>= BN_WSIZE;
-    }
-
     if (!c->number[c->size - 1] && c->size > 1)
         bn_resize(c, c->size - 1);
-    // if (a->size < b->size)
-    //     SWAP(a, b);
-    // bn_resize(c, a->size);
-    // bn_data carry = 0;
-    // for (int i = 0; i < b->size; i++) {
-    //     bn_data tmp1 = a->number[i];
-    //     bn_data tmp2 = b->number[i];
-    //     carry = (tmp1 += carry) < carry;
-    //     carry += (c->number[i] = tmp1 + tmp2) < tmp2;
-    // }
-    // // remaining part if a->size > b->size
-    // for (int i = b->size; i < a->size; i++) {
-    //     bn_data tmp1 = a->number[i];
-    //     carry = (tmp1 += carry) < carry;
-    //     c->number[i] = tmp1;
-    // }
-    // // remaining carry which need new number space
-    // if (carry) {
-    //     bn_resize(c, a->size + 1);
-    //     c->number[a->size] = carry;
-    // }
+    if (a->size < b->size)
+        SWAP(a, b);
+    bn_resize(c, a->size);
+    bn_data carry = 0;
+    for (int i = 0; i < b->size; i++) {
+        bn_data tmp1 = a->number[i];
+        bn_data tmp2 = b->number[i];
+        carry = (tmp1 += carry) < carry;
+        carry += (c->number[i] = tmp1 + tmp2) < tmp2;
+    }
+    // remaining part if a->size > b->size
+    for (int i = b->size; i < a->size; i++) {
+        bn_data tmp1 = a->number[i];
+        carry = (tmp1 += carry) < carry;
+        c->number[i] = tmp1;
+    }
+    // remaining carry which need new number space
+    if (carry) {
+        bn_resize(c, a->size + 1);
+        c->number[c->size - 1] = carry;
+    }
 }
 
 /*
