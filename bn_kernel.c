@@ -82,7 +82,8 @@ bn *bn_alloc(size_t size)
 {
     bn *new = (bn *) kmalloc(sizeof(bn), GFP_KERNEL);
     new->number = kmalloc(sizeof(bn_data) * size, GFP_KERNEL);
-    memset(new->number, 0, sizeof(bn_data) * size);
+    for (int i = 0; i < size; i++)
+        new->number[i] = 0;
     new->size = size;
     new->sign = 0;
     return new;
@@ -118,9 +119,10 @@ static int bn_resize(bn *src, size_t size)
     if (!src->number) {  // realloc fails
         return -1;
     }
-    if (size > src->size)
-        memset(src->number + src->size, 0,
-               sizeof(bn_data) * (size - src->size));
+    if (size > src->size) {
+        for (int i = src->size; i < size; i++)
+            src->number[i] = 0;
+    }
     src->size = size;
     return 0;
 }
@@ -153,11 +155,15 @@ void bn_lshift(bn *src, size_t shift, bn *dest)
     shift %= BN_WSIZE;  // only handle shift within BN_WSIZE bits atm
     if (!shift)
         return;
-    bn_resize(dest, src->size + (shift > z));
 
-    if (dest->size > src->size)
-        dest->number[dest->size - 1] =
+    if (shift > z) {
+        bn_resize(dest, src->size + 1);
+        dest->number[src->size] =
             src->number[src->size - 1] >> (BN_WSIZE - shift);
+    } else {
+        bn_resize(dest, src->size);
+    }
+
     for (int i = src->size - 1; i > 0; i--)
         dest->number[i] =
             src->number[i] << shift | src->number[i - 1] >> (BN_WSIZE - shift);
@@ -206,7 +212,8 @@ int bn_cmp(const bn *a, const bn *b)
     }
 }
 
-/* |c| = |a| + |b| */
+/* |c| = |a| + |b|
+ */
 static void bn_do_add(const bn *a, const bn *b, bn *c)
 {
     // max digits = max(sizeof(a) + sizeof(b)) + 1
@@ -214,23 +221,38 @@ static void bn_do_add(const bn *a, const bn *b, bn *c)
     d = DIV_ROUNDUP(d, BN_WSIZE) + !d;
     bn_resize(c, d);  // round up, min size = 1
 
-    bn_data carry = 0;
-    for (int i = 0; i < b->size; i++) {
-        bn_data tmp1 = a->number[i];
-        bn_data tmp2 = b->number[i];
-        carry = (tmp1 += carry) < carry;
-        carry += (c->number[i] = tmp1 + tmp2) < tmp2;
-    }
-    if (a->size != b->size) {  // deal with the remaining part if asize > bsize
-        for (int i = b->size; i < a->size; i++) {
-            bn_data tmp1 = a->number[i];
-            carry = (tmp1 += carry) < carry;
-            c->number[i] = tmp1;
-        }
+    bn_data_tmp_u carry = 0;
+    for (int i = 0; i < c->size; i++) {
+        bn_data tmp1 = (i < a->size) ? a->number[i] : 0;
+        bn_data tmp2 = (i < b->size) ? b->number[i] : 0;
+        carry += (bn_data_tmp_u) tmp1 + tmp2;
+        c->number[i] = carry;
+        carry >>= BN_WSIZE;
     }
 
     if (!c->number[c->size - 1] && c->size > 1)
         bn_resize(c, c->size - 1);
+    // if (a->size < b->size)
+    //     SWAP(a, b);
+    // bn_resize(c, a->size);
+    // bn_data carry = 0;
+    // for (int i = 0; i < b->size; i++) {
+    //     bn_data tmp1 = a->number[i];
+    //     bn_data tmp2 = b->number[i];
+    //     carry = (tmp1 += carry) < carry;
+    //     carry += (c->number[i] = tmp1 + tmp2) < tmp2;
+    // }
+    // // remaining part if a->size > b->size
+    // for (int i = b->size; i < a->size; i++) {
+    //     bn_data tmp1 = a->number[i];
+    //     carry = (tmp1 += carry) < carry;
+    //     c->number[i] = tmp1;
+    // }
+    // // remaining carry which need new number space
+    // if (carry) {
+    //     bn_resize(c, a->size + 1);
+    //     c->number[a->size] = carry;
+    // }
 }
 
 /*
@@ -240,7 +262,7 @@ static void bn_do_add(const bn *a, const bn *b, bn *c)
 static void bn_do_sub(const bn *a, const bn *b, bn *c)
 {
     // max digits = max(sizeof(a) + sizeof(b))
-    bn_data d = MAX(a->size, b->size);
+    bn_data d = a->size;
     bn_resize(c, d);
 
     bn_data_tmp_s carry = 0;
@@ -420,7 +442,7 @@ void bn_fdoubling_v0(bn *dest, unsigned int n)
     bn *k2 = bn_alloc(1);
 
     /* walk through the digit of n */
-    for (unsigned int i = 1U << 31; i; i >>= 1) {
+    for (unsigned int i = 1U << (31 - __builtin_clz(n)); i; i >>= 1) {
         /* F(2k) = F(k) * [ 2 * F(k+1) – F(k) ] */
         // bn_cpy(k1, f2);     // k1 = F(k+1)
         bn_lshift(f2, 1, k1);  // k1 = 2* F(k+1)

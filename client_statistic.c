@@ -9,8 +9,8 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define sample_size 1000
-#define offset 10000
+#define sample_size 500
+#define offset 60000
 #define mode 1
 
 int main()

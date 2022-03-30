@@ -8,8 +8,8 @@
 
 
 #define FIB_DEV "/dev/fibonacci"
-#define offset 10000 /* TODO: try test something bigger than the limit */
-#define mode 0
+#define offset 5000 /* TODO: try test something bigger than the limit */
+#define mode 1
 
 
 int main()
